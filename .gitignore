@@ -1,0 +1,6 @@
+zig-out/
+*.o
+*.obj
+.zig-cache/
+
+port_forwarder*
