@@ -2,6 +2,7 @@ const std = @import("std");
 
 var stdin: std.fs.File.Reader = undefined;
 var stdout: std.fs.File.Writer = undefined;
+var addr: []u8 = undefined;
 
 fn forwardPort(port: []const u8) !void {
     const is_valid = std.fmt.parseInt(i32, port, 10) catch |err| {
@@ -20,6 +21,9 @@ fn forwardPort(port: []const u8) !void {
     const connectport = try std.fmt.allocPrint(std.heap.page_allocator, "connectport={s}", .{port});
     defer std.heap.page_allocator.free(connectport);
 
+    const connectaddress = try std.fmt.allocPrint(std.heap.page_allocator, "connectaddress={s}", .{addr});
+    defer std.heap.page_allocator.free(connectaddress);
+
     var child = std.process.Child.init(
         &[_][]const u8{
             "netsh",
@@ -30,7 +34,7 @@ fn forwardPort(port: []const u8) !void {
             listenport,
             "listenaddress=0.0.0.0",
             connectport,
-            "connectaddress=172.20.46.85",
+            connectaddress,
         },
         std.heap.page_allocator,
     );
@@ -140,6 +144,20 @@ fn turnFirewallOff() !void {
 pub fn main() !void {
     stdin = std.io.getStdIn().reader();
     stdout = std.io.getStdOut().writer();
+
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    const allocator = gpa.allocator();
+    defer _ = gpa.deinit();
+
+    const args = try std.process.argsAlloc(allocator);
+    defer std.process.argsFree(allocator, args);
+
+    if (args.len != 2) {
+        try stdout.print("Usage: {s} <address>\n", .{args[0]});
+        return;
+    }
+
+    addr = args[1];
 
     try turnFirewallOff();
 
